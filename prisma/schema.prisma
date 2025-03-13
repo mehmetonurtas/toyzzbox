@@ -1,0 +1,247 @@
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  password      String?
+  image         String?
+  role          String?
+  accounts      Account[]
+  sessions      Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Product {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  name        String
+  description String
+  price       Float
+  brands      Brand[]    @relation("ProductBrand")
+  categories  Category[] @relation("ProductCategory")
+  media       Media[]    @relation("ProductMedia")
+  urls        String[]
+  attributes Attribute[] @relation("ProductAttribute")
+    createdAt DateTime  @default(now())
+}
+
+
+model AttributeGroup {
+  id        String      @id @default(cuid())
+  name      String      // Attribute grubunun adı (örn. "Renk", "Beden")
+  attributes Attribute[] @relation("GroupAttributes") // Bu gruba ait attribute'lar
+}
+
+model Attribute {
+  id              String         @id @default(cuid())
+  name            String         // Attribute adı (örn. "Kırmızı", "Mavi")
+  groupId         String         // İlişkili olduğu attribute grubunun ID'si
+  group           AttributeGroup  @relation("GroupAttributes", fields: [groupId], references: [id]) // İlişki tanımı
+  products    Product[] @relation("ProductAttribute")
+}
+
+model Brand {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  media       Media[]   @relation("BrandMedia")
+  urls        String[]
+  products    Product[] @relation("ProductBrand")
+}
+
+model Media {
+  id        String    @id @default(cuid())
+  type      MediaType
+  fileUrl   String?
+  urls      String[]
+  postId    String?   @unique
+  post      Post?     @relation("PostMedia", fields: [postId], references: [id])
+  products  Product[] @relation("ProductMedia")
+  brands    Brand[]   @relation("BrandMedia")
+  categories Category[] @relation("CategoryMedia")
+  createdAt DateTime  @default(now())
+}
+
+
+
+
+
+
+
+//burdan sonrası
+// model Product {
+//   id          String   @id @default(cuid())
+//   slug        String   @unique
+//   name        String
+//   description String
+//   price       Float
+//   brands      Brand[]  @relation("ProductBrand")
+//   categories  Category[] @relation("ProductCategory")
+//  media       Media[]   @relation("ProductMedia")  // One-to-many ilişki (bir Brand birden fazla Media'ya sahip olabilir)
+//  urls        String[]  // Birden fazla URL'yi tutan alan
+// }
+
+// model Photo {
+//   id         Int      @id @default(autoincrement())
+//   url        String   // Fotoğrafın URL'si
+//   type       String
+//   products   Product[] @relation("ProductPhotos") // Bir fotoğraf birden fazla ürüne ait olabilir
+//   createdAt  DateTime @default(now()) // Oluşturulma zamanı
+//   updatedAt  DateTime @updatedAt      // Güncellenme zamanı
+// model Product {
+//   id          String   @id @default(cuid())
+//   slug        String   @unique
+//   name        String
+//   description String
+//   price       Float
+//   brands      Brand[]  @relation("ProductBrand")
+//   categories  Category[] @relation("ProductCategory")
+//   // media       Media[]    @relation("ProductMedia")  // Many-to-many ilişki
+//   // // photos      Photo[]   @relation("ProductPhotos") // Bir ürün birden fazla fotoğrafa sahip olabilir
+//   // media     Media?   @relation("BrandMedia") // One-to-one ilişki
+//   // mediaId   String?  // Media ile ilişkiyi tutan alan
+//   // url         String?  // Medyanın URL'sini tutan alan
+//     media       Media[]    @relation("ProductMedia")  // Many-to-many ilişki
+//   mediaIds    String[]   // Birden fazla mediaId tutacak array
+//   urls        String[]   // Birden fazla URL tutacak array
+// }
+// }
+
+
+
+
+
+// model Brand {
+//   id          String    @id @default(cuid())
+//   name        String
+//  slug        String   @unique
+//   description String?
+//   createdAt   DateTime  @default(now())
+//   media       Media[]   @relation("BrandMedia")  // One-to-many ilişki (bir Brand birden fazla Media'ya sahip olabilir)
+//  urls        String[]  // Birden fazla URL'yi tutan alan
+//   products    Product[] @relation("ProductBrand")  // Bu ilişkiyi buraya ekledik
+// }
+
+
+
+
+model Category {
+  id String @id @default(cuid())
+  slug String @unique
+  name      String
+  description String
+  parentId    String?     
+  parent      Category?   @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children    Category[]  @relation("CategoryHierarchy") // Alt kategoriler
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+    //   media     Media?   @relation("BrandMedia") // One-to-one ilişki
+  // mediaId   String?  // Media ile ilişkiyi tutan alan
+  // url         String?  // Medyanın URL'sini tutan alan
+    media       Media[]   @relation("CategoryMedia")
+  urls        String[]
+    products    Product[]  @relation("ProductCategory")   // Bu ilişkiyi buraya ekledik
+
+}
+
+
+
+model Post {
+  id        String   @id @default(cuid())
+  content   String   // Kullanıcının yazdığı içerik
+  fileUrl   String?  // Yüklenen dosyanın S3 URL'si
+  createdAt DateTime @default(now()) // Post'un oluşturulma tarihi
+  updatedAt DateTime @updatedAt // Post'un güncellenme tarihi
+  media     Media?   @relation("PostMedia") // One-to-one ilişki
+  mediaId   String?  // Media ile ilişkiyi tutan alan
+}
+
+// model Media {
+//   id        String   @id @default(cuid())
+//   type      MediaType // Enum ile tanımlanan type (video veya image)
+//   fileUrl   String?   // Bu alanı ekleyin
+//   urls       String[]   // Medyanın URL'si
+//   postId    String?   @unique // One-to-one ilişki için benzersiz postId
+//   post     Post?     @relation("PostMedia", fields: [postId], references: [id]) // One-to-one ilişki
+//   // brandId    String?   @unique // One-to-one ilişki için benzersiz postId
+//   // brand     Brand?     @relation("BrandMedia", fields: [brandId], references: [id]) // One-to-one ilişki
+//   //   categoryId    String?   @unique // One-to-one ilişki için benzersiz postId
+//   // category     Category?     @relation("BrandMedia", fields: [categoryId], references: [id]) // One-to-one ilişki
+//   // product     Product?     @relation("BrandMedia", fields: [productId], references: [id]) // One-to-one ilişki
+//   // productId String? @unique
+//     products Product[]  @relation("ProductMedia")
+//     brands      Brand[]   @relation("BrandMedia") // Many-to-many ilişki için
+
+  
+// //  products  Product[]  @relation("ProductMedia")  // Many-to-many ilişki
+//   productId String   // İlişkilendirme için bir alan
+  // product   Product? @relation("ProductMedia", fields: [productId], references: [id])
+//   createdAt DateTime @default(now()) // Media'nın oluşturulma tarihi
+// }
+
+// MediaType Enum, type değerini sınırlamak için kullanılır
+enum MediaType {
+  image
+  video
+}
